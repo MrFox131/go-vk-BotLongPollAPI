@@ -17,7 +17,7 @@ import (
 )
 
 const apiVersion = "5.92"
-const token = "2335fc759f1e25c246b3188c793ce487d5e71513fa8a15980e92c8d126f60a7e254775269fc11561ebd76"
+const token = "ur token"
 
 var (
 	commandHandlers = make(map[string]func(gjson.Result))
@@ -195,7 +195,7 @@ func handler(event gjson.Result) {
 func main() {
 	events := make(chan []gjson.Result)
 	//запрос LongPoll сервера
-	secretKey, server, ts, err := getBotLongPollServer(179027597)
+	secretKey, server, ts, err := getBotLongPollServer(group id)
 	if err != nil {
 		fmt.Printf("Can't get LongPoll Server, exiting.\nError: %s\n", err)
 		return
