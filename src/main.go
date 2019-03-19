@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math/rand"
@@ -16,20 +17,20 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const apiVersion = "5.92"
-const token = "ur token"
-
 var (
 	commandHandlers = make(map[string]func(gjson.Result))
 	messageHandlers = make(map[string]func(gjson.Result))
 	eventHandlers   = make(map[string]func(gjson.Result))
 	commandToken    = "/"
+	token           *string
+	apiVersion      *string
+	groupID         *string
 )
 
-func getBotLongPollServer(groupID uint32, commandToken ...string) (secretKey, server, ts string, custErr error) {
+func getBotLongPollServer(commandToken ...string) (secretKey, server, ts string, custErr error) {
 
 	//Запрос к апи
-	resp, err := http.Get(fmt.Sprintf("https://api.vk.com/method/groups.getLongPollServer?group_id=%d&access_token=%s&v=%s", groupID, token, apiVersion))
+	resp, err := http.Get(fmt.Sprintf("https://api.vk.com/method/groups.getLongPollServer?group_id=%s&access_token=%s&v=%s", *groupID, *token, *apiVersion))
 	if err != nil { //проверка на ошибки
 		println("Smth wrong")
 		return "", "", "", errors.New("Ошибка при запросе")
@@ -153,7 +154,7 @@ func eventHandling(event gjson.Result) {
 
 //Функця обращение к API VK -> ответ сервера либо ошибку при подключении
 func vkAPI(method string, args map[string]string) string {
-	address := fmt.Sprintf("https://api.vk.com/method/%s?access_token=%s&v=%s", method, token, apiVersion)
+	address := fmt.Sprintf("https://api.vk.com/method/%s?access_token=%s&v=%s", method, *token, *apiVersion)
 	for key, value := range args {
 		address = fmt.Sprintf("%s&%s=%s", address, key, url.QueryEscape(value))
 	}
@@ -180,11 +181,12 @@ func getRandomID() string {
 	return strconv.Itoa(int(rand.Int31() * -1))
 }
 
+//пример хендлера
 func handler(event gjson.Result) {
 	if time.Now().UnixNano()%2 == 0 {
-		fmt.Println(vkAPI("messages.send", map[string]string{"random_id": getRandomID(),
+		vkAPI("messages.send", map[string]string{"random_id": getRandomID(),
 			"message": "Смысол есть",
-			"peer_id": event.Get("object.peer_id").String()}))
+			"peer_id": event.Get("object.peer_id").String()})
 		return
 	}
 	vkAPI("messages.send", map[string]string{"random_id": getRandomID(),
@@ -193,16 +195,24 @@ func handler(event gjson.Result) {
 }
 
 func main() {
+	token = flag.String("token", "***", "BotLongPollToken") //Заменить на свой токен звездочки
+	apiVersion = flag.String("apiVersion", "5.92", "VkAPIVersion")
+	groupID = flag.String("groupID", "***", "Vk Group ID") //Заменить на group id звездочки
+	flag.Parse()
+	if *token == "" || *groupID == "" {
+		fmt.Println("Lack of args")
+		return
+	}
 	events := make(chan []gjson.Result)
 	//запрос LongPoll сервера
-	secretKey, server, ts, err := getBotLongPollServer(group id)
+	secretKey, server, ts, err := getBotLongPollServer()
 	if err != nil {
 		fmt.Printf("Can't get LongPoll Server, exiting.\nError: %s\n", err)
 		return
 	}
 	fmt.Printf("%s, %s, %s\n", secretKey, server, ts)
 	go updatesHandling(events)
-	addCommandHandler(handler, "смысол")
+	addCommandHandler(handler, "смысол") //пример назанчения хендлера
 	startPolling(secretKey, server, ts, events)
 	return
 }
